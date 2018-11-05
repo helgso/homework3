@@ -6,3 +6,4 @@
   - Here we will place our neural network solution inside neuralnetwork.py
   - Has a data folder with the necessary datasets circles.txt and MNIST
   - Has mnist_reader.py which we use to import data/fashion/* which is the MNIST dataset
+  - Has Requirements.docx which is a summary of what our neural network needs to have

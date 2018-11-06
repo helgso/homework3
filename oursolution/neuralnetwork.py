@@ -108,19 +108,84 @@ class Network(object):
         step_size
     ):
         # TODO: Define all the gradients and update our weights and biases
-        # Copy-paste from network2.py (lmbda regularization term removed):
+        # Copy-paste from network2.py (lmbda regularization term removed.
+        # We need to add our elastic-net regularization)
         nabla_b = [np.zeros(b.shape) for b in self.biases]
         nabla_w = [np.zeros(w.shape) for w in self.weights]
 
         for x, y in mini_batch:
-            delta_nabla_b, delta_nabla_w = self.backprop(x, y)
+            delta_nabla_b, delta_nabla_w = self.bprop(x, y)
             nabla_b = [nb+dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
             nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
 
-        self.weights = [w - (step_size / len(mini_batch)) * nw
-                        for w, nw in zip(self.weights, nabla_w)]
-        self.biases = [b - (step_size / len(mini_batch)) * nb
-                       for b, nb in zip(self.biases, nabla_b)]
+        self.weights = [w - (step_size / len(mini_batch)) * nw for w, nw in zip(self.weights, nabla_w)]
+        self.biases = [b - (step_size / len(mini_batch)) * nb for b, nb in zip(self.biases, nabla_b)]
+
+    def bprop(
+        self,
+        x,
+        y
+    ):
+        """
+        Returns a tuple (nabla_b, nabla_w) representing the gradient for the cost function C_x
+        """
+        # TODO: Replace the hidden neurons' activation with relu and the output neurons' activation with softmax
+        nabla_b = [np.zeros(b.shape) for b in self.biases]
+        nabla_w = [np.zeros(w.shape) for w in self.weights]
+
+        # feedforward
+        activation = x
+        activations = [x] # list to store all the activations, layer by layer
+        zs = [] # list to store all the z vectors, layer by layer
+        for b, w in zip(self.biases, self.weights):
+            z = np.dot(w, activation)+b
+            zs.append(z)
+            activation = sigmoid(z)
+            activations.append(activation)
+
+        # backward pass
+        delta = CostFunction.delta(zs[-1], activations[-1], y)
+        nabla_b[-1] = delta
+        nabla_w[-1] = np.dot(delta, activations[-2].transpose())
+
+        for l in range(2, self.num_layers):
+            z = zs[-l]
+            sp = sigmoid_prime(z)
+            delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
+            nabla_b[-l] = delta
+            nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
+
+        return nabla_b, nabla_w
+
+
+def relu(z):
+    """
+    The RELU function
+
+    :param z: the pre-activation of the node with a relu activation
+    """
+    if z >= 0:
+        return z
+
+    return 0
+
+
+class CostFunction(object):
+    @staticmethod
+    def fn(a, y):
+        """
+        Returns the cost associated with an output ` and desired output y
+        """
+        # TODO: Implement
+        pass
+
+    @staticmethod
+    def delta(z, a, y):
+        """
+        Returns the error delta from the output layer.
+        """
+        # TODO: Implement
+        pass
 
 
 if __name__ == '__main__':

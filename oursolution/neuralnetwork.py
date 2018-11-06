@@ -10,6 +10,10 @@ import mnist_reader
 import numpy as np
 
 
+def softmax(x, axis=0):
+    a = np.exp(x-np.expand_dims(np.max(x), axis=axis), axis)
+    return a / np.expand_dims(np.sum(a, axis=axis), axis)
+
 def main():
     # Circles.txt training data
     circles_data = np.loadtxt('data/circles/circles.txt')

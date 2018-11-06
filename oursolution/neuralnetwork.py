@@ -2,6 +2,10 @@ import os
 # Set current working directory as this file's path
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
+import json
+import random
+import sys
+
 import mnist_reader
 import numpy as np
 
@@ -18,7 +22,6 @@ def main():
 
 
 class Network(object):
-
     def __init__(
         self,
         num_neurons
@@ -59,6 +62,61 @@ class Network(object):
         #gradient_params = back_propagation(test_data)
         #loss_new_params = loss_function(test_data, gradient_params)
         #assert 0.99 <= finite_difference/loss_new_params <= 1.01
+
+    def train(
+        self,
+        training_data,
+        epochs,
+        mini_batch_size,
+        step_size
+    ):
+        """
+        Train the Network
+
+        :param training_data: An array of all training examples+labels we will use
+        :param epochs: The amount of epochs we will use to train
+        :param mini_batch_size: The size of our mini-batches
+        :param step_size: The learning rate
+        """
+        print("Training ...")
+
+        next_percentage = 0.1
+        percentage_increment = 0.1
+        for epoch in range(epochs):
+            random.shuffle(training_data)
+            mini_batches = [
+                training_data[k:k+mini_batch_size]
+                for k in range(0, len(training_data), mini_batch_size)
+            ]
+
+            for mini_batch in mini_batches:
+                self.update_network_parameters(mini_batch, step_size)
+
+            # Printing progress every percentage_increment percent
+            percentage_done = (1.0*epoch)/epochs
+            if percentage_done > next_percentage:
+                print("{}% done".format(percentage_done))
+                next_percentage += percentage_increment
+
+    def update_network_parameters(
+        self,
+        mini_batch,
+        step_size
+    ):
+        # TODO: Define all the gradients and update our weights and biases
+        # Copy-paste from network2.py (lmbda regularization term removed):
+        nabla_b = [np.zeros(b.shape) for b in self.biases]
+        nabla_w = [np.zeros(w.shape) for w in self.weights]
+
+        for x, y in mini_batch:
+            delta_nabla_b, delta_nabla_w = self.backprop(x, y)
+            nabla_b = [nb+dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
+            nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
+
+        self.weights = [w - (step_size / len(mini_batch)) * nw
+                        for w, nw in zip(self.weights, nabla_w)]
+        self.biases = [b - (step_size / len(mini_batch)) * nb
+                       for b, nb in zip(self.biases, nabla_b)]
 
 
 if __name__ == '__main__':

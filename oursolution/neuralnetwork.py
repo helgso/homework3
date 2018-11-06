@@ -17,5 +17,22 @@ def main():
     # our_algorithm()
 
 
+class Network(object):
+
+    def __init__(self, num_neurons):
+        """
+        Initialization method
+
+        :param num_neurons: A list of the amount of neurons in each layer [input, hidden_1, ..., hidden_n, output]
+        """
+        self.num_layers = len(num_neurons)
+        self.layer_sizes = num_neurons
+        self.biases = [np.zeros(layer_size) for layer_size in self.layer_sizes[1:]]
+        self.weights = [
+            [np.random.uniform(-1/np.sqrt(2), 1/np.sqrt(2), x) for i in range(0, y)]
+            for x, y in zip(self.layer_sizes[:-1], self.layer_sizes[1:])
+        ]
+
+
 if __name__ == '__main__':
     main()

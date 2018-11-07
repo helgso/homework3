@@ -17,6 +17,11 @@ def softmax(x, axis=0):
 def init_weights(shape):
     return np.random.uniform(-1/np.sqrt(shape[0]), 1/np.sqrt(shape[0]), shape)
 
+#TODO: to complete
+def softmax_prime(x, axis=0):
+    """Derivative of the softmax function."""
+    return 0
+
 def main():
     # Circles.txt training data
     circles_data = np.loadtxt('data/circles/circles.txt')
@@ -131,7 +136,7 @@ class Network(object):
         """
         Returns a tuple (nabla_b, nabla_w) representing the gradient for the cost function C_x
         """
-        # TODO: Replace the hidden neurons' activation with relu and the output neurons' activation with softmax
+        # TODO: Replace the hidden neurons' activation with relu
         nabla_b = [np.zeros(b.shape) for b in self.biases]
         nabla_w = [np.zeros(w.shape) for w in self.weights]
 
@@ -141,8 +146,9 @@ class Network(object):
         zs = [] # list to store all the z vectors, layer by layer
         for b, w in zip(self.biases, self.weights):
             z = np.dot(w, activation)+b
+            z = relu(z) #not sure here
             zs.append(z)
-            activation = sigmoid(z)
+            activation = softmax(z)
             activations.append(activation)
 
         # backward pass
@@ -152,7 +158,7 @@ class Network(object):
 
         for l in range(2, self.num_layers):
             z = zs[-l]
-            sp = sigmoid_prime(z)
+            sp = softmax_prime(z)
             delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
             nabla_b[-l] = delta
             nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
@@ -174,12 +180,12 @@ def relu(z):
 
 class CostFunction(object):
     @staticmethod
-    def fn(a, y):
+    def fn(o, a, y):
         """
         Returns the cost associated with an output ` and desired output y
         """
         # TODO: Implement
-        pass
+        return -np.log(softmax(o[a][y]))
 
     @staticmethod
     def delta(z, a, y):

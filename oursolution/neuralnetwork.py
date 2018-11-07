@@ -10,17 +10,31 @@ import mnist_reader
 import numpy as np
 
 
-def softmax(x, axis=0):
-    a = np.exp(x-np.expand_dims(np.max(x), axis=axis), axis)
-    return a / np.expand_dims(np.sum(a, axis=axis), axis)
-
 def init_weights(shape):
     return np.random.uniform(-1/np.sqrt(shape[0]), 1/np.sqrt(shape[0]), shape)
+
+def softmax(x, axis=0):
+    a = np.exp(x - np.amax(x, axis=axis, keepdims=True))
+    return a / np.sum(a, axis=axis, keepdims=True)
 
 #TODO: to complete
 def softmax_prime(x, axis=0):
     """Derivative of the softmax function."""
     return 0
+
+def relu(z):
+    """
+    The RELU function
+
+    :param z: the pre-activation of the node with a relu activation
+    """
+    return np.maximum(z, 0)
+
+def relu_prime(z):
+    return np.greater(z, 0)
+
+def log_loss(o_y):
+    return -np.log(o_y)
 
 def main():
     # Circles.txt training data
@@ -39,14 +53,14 @@ class Network(object):
         num_neurons
     ):
         """
-        Initialization method
+            Initialization method
 
         :param num_neurons: A list of the amount of neurons in each layer [input, hidden_1, ..., hidden_n, output]
         """
         self.num_layers = len(num_neurons)
         self.layer_sizes = num_neurons
-        self.biases = [np.zeros(layer_size) for layer_size in self.layer_sizes[1:]]
-        self.weights = [
+        self.b = [np.zeros((layer_size, 1)) for layer_size in self.layer_sizes[1:]]
+        self.w = [
             init_weights(size) for size in zip(self.layer_sizes[:-1], self.layer_sizes[1:])
         ]
 
@@ -117,16 +131,32 @@ class Network(object):
         # TODO: Define all the gradients and update our weights and biases
         # Copy-paste from network2.py (lmbda regularization term removed.
         # We need to add our elastic-net regularization)
-        nabla_b = [np.zeros(b.shape) for b in self.biases]
-        nabla_w = [np.zeros(w.shape) for w in self.weights]
+        nabla_b = [np.zeros(b.shape) for b in self.b]
+        nabla_w = [np.zeros(w.shape) for w in self.w]
 
         for x, y in mini_batch:
             delta_nabla_b, delta_nabla_w = self.bprop(x, y)
             nabla_b = [nb+dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
             nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
 
-        self.weights = [w - (step_size / len(mini_batch)) * nw for w, nw in zip(self.weights, nabla_w)]
-        self.biases = [b - (step_size / len(mini_batch)) * nb for b, nb in zip(self.biases, nabla_b)]
+        self.w = [w - (step_size / len(mini_batch)) * nw for w, nw in zip(self.weights, nabla_w)]
+        self.b = [b - (step_size / len(mini_batch)) * nb for b, nb in zip(self.biases, nabla_b)]
+
+    def fprop(self, x, y):
+        self.activations = []
+        z = x
+        for w, b, a in zip(self.w, self.b):
+            z = relu(np.dot(w.T, z) + b)
+            self.activations.append(z)
+       
+        o = softmax(a)
+        L = log_loss(o[y])
+        return L
+            
+    def onehot(self, y):
+        oh = np.zeros((self.layer_sizes[-1],1))
+        oh[y-1] = 1
+        return oh
 
     def bprop(
         self,
@@ -136,20 +166,21 @@ class Network(object):
         """
         Returns a tuple (nabla_b, nabla_w) representing the gradient for the cost function C_x
         """
-        # TODO: Replace the hidden neurons' activation with relu
-        nabla_b = [np.zeros(b.shape) for b in self.biases]
-        nabla_w = [np.zeros(w.shape) for w in self.weights]
+        nabla_b = [np.zeros(b.shape) for b in self.b]
+        nabla_w = [np.zeros(w.shape) for w in self.w]
 
         # feedforward
+        """
         activation = x
         activations = [x] # list to store all the activations, layer by layer
         zs = [] # list to store all the z vectors, layer by layer
-        for b, w in zip(self.biases, self.weights):
+        for b, w in zip(self.b, self.w):
             z = np.dot(w, activation)+b
             z = relu(z) #not sure here
             zs.append(z)
             activation = softmax(z)
             activations.append(activation)
+        """
 
         # backward pass
         delta = CostFunction.delta(zs[-1], activations[-1], y)
@@ -159,41 +190,11 @@ class Network(object):
         for l in range(2, self.num_layers):
             z = zs[-l]
             sp = softmax_prime(z)
-            delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
+            delta = np.dot(self.w[-l+1].transpose(), delta) * sp
             nabla_b[-l] = delta
             nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
 
         return nabla_b, nabla_w
-
-
-def relu(z):
-    """
-    The RELU function
-
-    :param z: the pre-activation of the node with a relu activation
-    """
-    if z >= 0:
-        return z
-
-    return 0
-
-
-class CostFunction(object):
-    @staticmethod
-    def fn(o, a, y):
-        """
-        Returns the cost associated with an output ` and desired output y
-        """
-        # TODO: Implement
-        return -np.log(softmax(o[a][y]))
-
-    @staticmethod
-    def delta(z, a, y):
-        """
-        Returns the error delta from the output layer.
-        """
-        # TODO: Implement
-        pass
 
 
 if __name__ == '__main__':

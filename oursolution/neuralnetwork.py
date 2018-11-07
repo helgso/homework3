@@ -14,6 +14,9 @@ def softmax(x, axis=0):
     a = np.exp(x-np.expand_dims(np.max(x), axis=axis), axis)
     return a / np.expand_dims(np.sum(a, axis=axis), axis)
 
+def init_weights(shape):
+    return np.random.uniform(-1/np.sqrt(shape[0]), 1/np.sqrt(shape[0]), shape)
+
 def main():
     # Circles.txt training data
     circles_data = np.loadtxt('data/circles/circles.txt')
@@ -39,8 +42,7 @@ class Network(object):
         self.layer_sizes = num_neurons
         self.biases = [np.zeros(layer_size) for layer_size in self.layer_sizes[1:]]
         self.weights = [
-            [np.random.uniform(-1/np.sqrt(y), 1/np.sqrt(y), x) for i in range(0, y)]
-            for x, y in zip(self.layer_sizes[:-1], self.layer_sizes[1:])
+            init_weights(size) for size in zip(self.layer_sizes[:-1], self.layer_sizes[1:])
         ]
 
     def finite_difference_gradient_check(

@@ -18,7 +18,6 @@ def softmax(x, axis=0):
     a = np.exp(x - np.amax(x, axis=axis, keepdims=True))
     return a / np.sum(a, axis=axis, keepdims=True)
 
-
 def softmax_prime(output_activations, y):
     """
     Derivative of the softmax function
@@ -51,6 +50,12 @@ def relu_prime(z):
 
 def log_loss(o_y):
     return -np.log(o_y)
+
+
+def gradient_approx(x, eps=None):
+    if eps is None or eps < 10 ** -6 or eps > 10 ** -4:
+        eps = np.random.uniform(10 ** -6, 10 ** -4)
+    return (log_loss(x+eps) - log_loss(x-eps)) / (2 * eps)
 
 
 def main():
@@ -169,19 +174,19 @@ class Network(object):
         self.b = [b - (step_size / len(mini_batch)) * nb for b, nb in zip(self.b, gradient_b)]
 
     def fprop(self, x, y):
-        self.activations = []
+        self.zs = []
         z = x
         for w, b, a in zip(self.w, self.b):
             z = relu(np.dot(w.T, z) + b)
-            self.activations.append(z)
+            self.zs.append(z)
        
         o = softmax(a)
         L = log_loss(o[y])
-        return L
+        return o, L
 
     def bprop(
         self,
-        x,
+        output,
         y
     ):
         """

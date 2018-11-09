@@ -37,22 +37,28 @@ def relu_prime(z):
 def log_loss(o_y):
     return -np.log(o_y)
 
-def gradient_approx(x, eps=None):
+def gradient_approx(x, func, eps=None):
     if eps is None or eps < 10 ** -6 or eps > 10 ** -4:
         eps = np.random.uniform(10 ** -6, 10 ** -4)
-    return (log_loss(x+eps) - log_loss(x-eps)) / (2 * eps)
+    return (func(x+eps) - func(x-eps)) / (2 * eps)
 
 def main():
     # Circles.txt training data
     circles_data = np.loadtxt('data/circles/circles.txt')
+    circles_train = circles_data[:,:-1]
+    circles_target = circles_data[:,-1].reshape(1,-1).astype(int).T
 
     # MNIST training data
     x_train, y_train = mnist_reader.load_mnist('data/fashion', kind='train')
     x_test, y_test = mnist_reader.load_mnist('data/fashion', kind='t10k')
+    
+    circles = Network([2,10,2])
+    circles.finite_difference_gradient_check(circles_train[0,:].reshape(1,-1).T,
+            circles_target[0,:].reshape(1,-1))
 
     # our_algorithm()
-    model = Network([784,300,10])
-    model.train(x_train,
+    #model = Network([784,300,10])
+    #model.train(x_train
 
 class Network(object):
     def __init__(
@@ -73,27 +79,24 @@ class Network(object):
 
     def finite_difference_gradient_check(
         self,
-        test_data
+        test_data,
+        test_target
     ):
         """
         Used to estimate the gradient numerically. Used to check our gradient computation
 
         :param test_data: An array of examples+labels we want to verify our back propagation algorithm with
         """
-        # 1: Calculate the loss function for the current parameter values (single example or mini batch)
-        #loss_current_params = loss_function(test_data, current_params)
-
-        # 2: Calculate the loss function for the current parameter values but add a small number ksi [10^-6; 10^-4] to each parameter first
-        #ksi = np.random.uniform(10 ** -6, 10 ** -4)
-        #loss_current_params_plus_ksi = loss_function(test_data, current_params + ksi)
-
-        # 3: Divide the change of the loss function by ksi
-        #finite_difference = np.absolute(loss_current_params - loss_current_params_plus_ksi)/ksi
-
-        # 4: Validate that the ratio of our gradient computed by the back propagation and the finite difference is between 0.99 and 1.01
-        #gradient_params = back_propagation(test_data)
-        #loss_new_params = loss_function(test_data, gradient_params)
-        #assert 0.99 <= finite_difference/loss_new_params <= 1.01
+        x = test_data
+        y = test_target
+        output, loss = self.fprop(x, y)
+        gradient = -1/output[y]
+        finite_difference = gradient_approx(output[y], log_loss)
+        gradient_2 = relu_prime(self.zs[-1])
+        finite_diff_2 = gradient_approx(self.zs[-1], relu)
+        assert 0.99 <= finite_difference/gradient <= 1.01
+        for i in range(len(gradient_2)):
+            assert 0.99 <= finite_diff_2[i]/gradient_2[i] <= 1.01
 
     def train(
         self,
@@ -154,7 +157,6 @@ class Network(object):
         self.zs = [x]
         z = x
         for w, b in zip(self.w, self.b):
-            print(b.shape)
             z = relu(w.T @ z + b)
             self.zs.append(z)
        

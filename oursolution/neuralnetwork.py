@@ -17,10 +17,9 @@ def softmax(x, axis=0):
     a = np.exp(x - np.amax(x, axis=axis, keepdims=True))
     return a / np.sum(a, axis=axis, keepdims=True)
 
-#TODO: to complete
-def softmax_prime(x, axis=0):
+def softmax_prime(a, y, axis=0):
     """Derivative of the softmax function."""
-    return 0
+    return  
 
 def relu(z):
     """
@@ -35,6 +34,11 @@ def relu_prime(z):
 
 def log_loss(o_y):
     return -np.log(o_y)
+
+def gradient_approx(x, eps=None):
+    if eps is None or eps < 10 ** -6 or eps > 10 ** -4:
+        eps = np.random.uniform(10 ** -6, 10 ** -4)
+    return (log_loss(x+eps) - log_loss(x-eps)) / (2 * eps)
 
 def main():
     # Circles.txt training data
@@ -132,10 +136,10 @@ class Network(object):
         # Copy-paste from network2.py (lmbda regularization term removed.
         # We need to add our elastic-net regularization)
         nabla_b = [np.zeros(b.shape) for b in self.b]
-        nabla_w = [np.zeros(w.shape) for w in self.w]
 
         for x, y in mini_batch:
-            delta_nabla_b, delta_nabla_w = self.bprop(x, y)
+            o, L = self.fprop(x,y)
+            delta_nabla_b, delta_nabla_w = self.bprop(o, y, L)
             nabla_b = [nb+dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
             nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
 
@@ -143,15 +147,15 @@ class Network(object):
         self.b = [b - (step_size / len(mini_batch)) * nb for b, nb in zip(self.biases, nabla_b)]
 
     def fprop(self, x, y):
-        self.activations = []
+        self.zs = []
         z = x
         for w, b, a in zip(self.w, self.b):
             z = relu(np.dot(w.T, z) + b)
-            self.activations.append(z)
+            self.zs.append(z)
        
         o = softmax(a)
         L = log_loss(o[y])
-        return L
+        return o, L
             
     def onehot(self, y):
         oh = np.zeros((self.layer_sizes[-1],1))
@@ -160,32 +164,26 @@ class Network(object):
 
     def bprop(
         self,
-        x,
-        y
+        output,
+        y,
+        Loss
     ):
         """
         Returns a tuple (nabla_b, nabla_w) representing the gradient for the cost function C_x
         """
+
         nabla_b = [np.zeros(b.shape) for b in self.b]
         nabla_w = [np.zeros(w.shape) for w in self.w]
 
-        # feedforward
-        """
-        activation = x
-        activations = [x] # list to store all the activations, layer by layer
-        zs = [] # list to store all the z vectors, layer by layer
-        for b, w in zip(self.b, self.w):
-            z = np.dot(w, activation)+b
-            z = relu(z) #not sure here
-            zs.append(z)
-            activation = softmax(z)
-            activations.append(activation)
-        """
-
         # backward pass
-        delta = CostFunction.delta(zs[-1], activations[-1], y)
-        nabla_b[-1] = delta
-        nabla_w[-1] = np.dot(delta, activations[-2].transpose())
+
+        grad_output = output - onehot(y)
+       
+        grad_w_plus_1 = grad_output
+        for k in reversed(range(self.num_layers)):
+            grad_w = (self.weights[k].T @ grad_w_plus_1) * relu_prime(self.a[k])
+
+        print(grad_w)
 
         for l in range(2, self.num_layers):
             z = zs[-l]

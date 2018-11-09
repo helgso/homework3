@@ -26,7 +26,7 @@ def question1():
 
 def question2():
 
-   model = Network([2,2])
+   model = nn.Network([2,2])
    model.finite_difference_gradient_check(
            nn.vectorof(circles_x[0,:]),
            nn.vectorof(circles_y[0,:]),
@@ -56,3 +56,6 @@ def question9():
 
 def question10():
     pass
+
+if __name__=='__main__':
+    main()

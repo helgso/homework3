@@ -20,15 +20,9 @@ def softmax(x, axis=0):
     return a / np.sum(a, axis=axis, keepdims=True)
 
 def softmax_prime(a, y, axis=0):
-    """Derivative of the softmax function."""
     return  
 
 def relu(z):
-    """
-    The RELU function
-
-    :param z: the pre-activation of the node with a relu activation
-    """
     return np.maximum(z, 0)
 
 def vectorof(x):
@@ -49,12 +43,14 @@ def gradient_approx(x, func, eps=None):
         eps = np.random.uniform(10 ** -6, 10 ** -4)
     return (func(x+eps) - func(x-eps)) / (2 * eps)
 
-def about_equal(a, b, eps = 10 ** -2):
+def about_equal(a, b):
     if a == 0. and b == 0.5 or b == 0. and a == 0.5:
         return True
-    return a - b < eps
+    return 0.99 <= a/b <= 1.01
+
 
 def main():
+    """
     # Circles.txt training data
     circles_data = np.loadtxt('data/circles/circles.txt')
     circles_train = circles_data[:,:-1]
@@ -63,14 +59,13 @@ def main():
     circles = Network([2,10,2])
     circles.finite_difference_gradient_check(vectorof(circles_train[0,:]),
             vectorof(circles_target[0,:]))
-
+    """
     # MNIST training data
     x_train, y_train = mnist_reader.load_mnist('data/fashion', kind='train')
     x_test, y_test = mnist_reader.load_mnist('data/fashion', kind='t10k')
-
-    # our_algorithm()
-    # model = Network([784,300,10])
-    # model.train(x_train, y_train, epochs=10)
+    
+    model = Network([784,300,10])
+    model.train(x_train, y_train, epochs=10)
 
 class Network(object):
     def __init__(
@@ -112,7 +107,7 @@ class Network(object):
     
         nabla_a = relu_prime(self.zs[-1])
         approx_a = gradient_approx(self.zs[-1], relu)
-
+        
         for i in range(len(output)):
             assert about_equal(nabla_L[i], approx_L[i])
             assert about_equal(nabla_a[i], approx_a[i])
@@ -125,22 +120,7 @@ class Network(object):
             print(approx_L)
             print(approx_a)
 
-    def train(
-        self,
-        x_train,
-        y_train,
-        epochs,
-        mini_batch_size=1,
-        step_size=0.0001
-    ):
-        """
-        Train the Network
-
-        :param training_data: An array of all training examples+labels we will use
-        :param epochs: The amount of epochs we will use to train
-        :param mini_batch_size: The size of our mini-batches
-        :param step_size: The learning rate
-        """
+    def train(self, x_train, y_train, epochs, mini_batch_size=1, step_size=0.0001):
         print("Training ...")
 
         next_percentage = 0.1
@@ -153,7 +133,6 @@ class Network(object):
             ]
 
             for mini_batch in mini_batches:
-                print(mini_batch)
                 self.update_network_parameters(mini_batch, step_size)
 
             # Printing progress every percentage_increment percent
@@ -171,18 +150,23 @@ class Network(object):
         # Copy-paste from network2.py (lmbda regularization term removed.
         # We need to add our elastic-net regularization)
         nabla_b = [np.zeros(b.shape) for b in self.b]
+        nabla_w = [np.zeros(w.shape) for w in self.w]
 
         for x, y in mini_batch:
+            print(x.shape)
+            print(y.shape)
             o, L = self.fprop(x,y)
             delta_nabla_b, delta_nabla_w = self.bprop(o, y)
 
             nabla_b = [nb+dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
             nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
 
-        self.w = [w - (step_size / len(mini_batch)) * nw for w, nw in zip(self.weights, nabla_w)]
-        self.b = [b - (step_size / len(mini_batch)) * nb for b, nb in zip(self.biases, nabla_b)]
+        self.w = [w - (step_size / len(x)) * nw for w, nw in zip(self.w, nabla_w)]
+        self.b = [b - (step_size / len(x)) * nb for b, nb in zip(self.b, nabla_b)]
 
     def fprop(self, x, y):
+        x = vectorof(x)
+        y = vectorof(y)
         self.zs = [x]
         z = x
         for w, b in zip(self.w, self.b):
@@ -206,7 +190,7 @@ class Network(object):
 
         for k in reversed(range(len(self.w[:-1]))):
             e_now = self.w[k+1] @ e_prev * relu_prime(self.zs[k+1])
-            nabla_w[k] = e_now @ self.zs[k].T
+            nabla_w[k] = self.zs[k] @ e_now.T
             nabla_b[k] = e_now
             e_prev = e_now
 

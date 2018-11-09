@@ -5,12 +5,12 @@ import os
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 import json
-import random
 import sys
 
 import mnist_reader
 import numpy as np
 
+from sklearn.utils import shuffle
 
 def init_weights(shape):
     return np.random.uniform(-1/np.sqrt(shape[0]), 1/np.sqrt(shape[0]), shape)
@@ -31,8 +31,15 @@ def relu(z):
     """
     return np.maximum(z, 0)
 
+def vectorof(x):
+    if len(x.shape) == 1:
+        return np.expand_dims(x, axis=1)
+    if len(x.shape) == 2 and x.shape[0] == 1:
+        return x.T
+    return x
+
 def relu_prime(z):
-    return np.greater(z, 0)
+    return np.greater(z, 0).astype(int)
 
 def log_loss(o_y):
     return -np.log(o_y)
@@ -42,23 +49,28 @@ def gradient_approx(x, func, eps=None):
         eps = np.random.uniform(10 ** -6, 10 ** -4)
     return (func(x+eps) - func(x-eps)) / (2 * eps)
 
+def about_equal(a, b, eps = 10 ** -2):
+    if a == 0. and b == 0.5 or b == 0. and a == 0.5:
+        return True
+    return a - b < eps
+
 def main():
     # Circles.txt training data
     circles_data = np.loadtxt('data/circles/circles.txt')
     circles_train = circles_data[:,:-1]
-    circles_target = circles_data[:,-1].reshape(1,-1).astype(int).T
+    circles_target = vectorof(circles_data[:,-1].astype(int))
+    
+    circles = Network([2,10,2])
+    circles.finite_difference_gradient_check(vectorof(circles_train[0,:]),
+            vectorof(circles_target[0,:]))
 
     # MNIST training data
     x_train, y_train = mnist_reader.load_mnist('data/fashion', kind='train')
     x_test, y_test = mnist_reader.load_mnist('data/fashion', kind='t10k')
-    
-    circles = Network([2,10,2])
-    circles.finite_difference_gradient_check(circles_train[0,:].reshape(1,-1).T,
-            circles_target[0,:].reshape(1,-1))
 
     # our_algorithm()
-    #model = Network([784,300,10])
-    #model.train(x_train
+    # model = Network([784,300,10])
+    # model.train(x_train, y_train, epochs=10)
 
 class Network(object):
     def __init__(
@@ -80,7 +92,8 @@ class Network(object):
     def finite_difference_gradient_check(
         self,
         test_data,
-        test_target
+        test_target,
+        display = False
     ):
         """
         Used to estimate the gradient numerically. Used to check our gradient computation
@@ -90,20 +103,35 @@ class Network(object):
         x = test_data
         y = test_target
         output, loss = self.fprop(x, y)
-        gradient = -1/output[y]
-        finite_difference = gradient_approx(output[y], log_loss)
-        gradient_2 = relu_prime(self.zs[-1])
-        finite_diff_2 = gradient_approx(self.zs[-1], relu)
-        assert 0.99 <= finite_difference/gradient <= 1.01
-        for i in range(len(gradient_2)):
-            assert 0.99 <= finite_diff_2[i]/gradient_2[i] <= 1.01
+
+        nabla_L = -1/output
+        approx_L = gradient_approx(output, log_loss)
+
+        #nabla_s = output * (1 - output)
+        #approx_s = gradient_approx(relu(self.zs[-1]), softmax)
+    
+        nabla_a = relu_prime(self.zs[-1])
+        approx_a = gradient_approx(self.zs[-1], relu)
+
+        for i in range(len(output)):
+            assert about_equal(nabla_L[i], approx_L[i])
+            assert about_equal(nabla_a[i], approx_a[i])
+        
+        if display:
+            print('gradient: ')
+            print(nabla_L)
+            print(nabla_a)
+            print('finite difference: ')
+            print(approx_L)
+            print(approx_a)
 
     def train(
         self,
-        training_data,
+        x_train,
+        y_train,
         epochs,
-        mini_batch_size,
-        step_size
+        mini_batch_size=1,
+        step_size=0.0001
     ):
         """
         Train the Network
@@ -118,13 +146,14 @@ class Network(object):
         next_percentage = 0.1
         percentage_increment = 0.1
         for epoch in range(epochs):
-            random.shuffle(training_data)
+            shuffle(x_train, y_train)
             mini_batches = [
-                training_data[k:k+mini_batch_size]
-                for k in range(0, len(training_data), mini_batch_size)
+                    zip(x_train[k:k+mini_batch_size], y_train[k:k+mini_batch_size])
+                for k in range(0, len(x_train), mini_batch_size)
             ]
 
             for mini_batch in mini_batches:
+                print(mini_batch)
                 self.update_network_parameters(mini_batch, step_size)
 
             # Printing progress every percentage_increment percent

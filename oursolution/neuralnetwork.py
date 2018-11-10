@@ -56,13 +56,17 @@ def about_equal(a, b, eps = 10 ** -2):
 
 def main():
     # Circles.txt training data
+    #Questions 1,2
     circles_data = np.loadtxt('data/circles/circles.txt')
     circles_train = circles_data[:,:-1]
     circles_target = vectorof(circles_data[:,-1].astype(int))
     
-    circles = Network([2,10,2])
+    circles = Network([2,2,2])
     circles.finite_difference_gradient_check(vectorof(circles_train[0,:]),
             vectorof(circles_target[0,:]))
+
+    #Question 6
+    circles.finite_difference_gradient_check_mat(nn.vectorof(circles_train),nn.vectorof(circles_target));
 
     # MNIST training data
     x_train, y_train = mnist_reader.load_mnist('data/fashion', kind='train')
@@ -82,22 +86,22 @@ class Network(object):
 
         :param num_neurons: A list of the amount of neurons in each layer [input, hidden_1, ..., hidden_n, output]
         """
-        self.num_layers = len(num_neurons)
         self.layer_sizes = num_neurons
         self.b = [np.zeros((layer_size, 1)) for layer_size in self.layer_sizes[1:]]
         self.w = [
             init_weights(size) for size in zip(self.layer_sizes[:-1], self.layer_sizes[1:])
         ]
 
+        print("Weights: %s" % self.w)
+
     def finite_difference_gradient_check(
         self,
         test_data,
         test_target,
-        display = False
+        display = True
     ):
         """
         Used to estimate the gradient numerically. Used to check our gradient computation
-
         :param test_data: An array of examples+labels we want to verify our back propagation algorithm with
         """
         x = test_data
@@ -112,10 +116,51 @@ class Network(object):
     
         nabla_a = relu_prime(self.zs[-1])
         approx_a = gradient_approx(self.zs[-1], relu)
-
+        
         for i in range(len(output)):
             assert about_equal(nabla_L[i], approx_L[i])
             assert about_equal(nabla_a[i], approx_a[i])
+        
+        if display:
+            print('gradient: ')
+            print(nabla_L)
+            print(nabla_a)
+            print('finite difference: ')
+            print(approx_L)
+            print(approx_a)
+
+    def finite_difference_gradient_check_mat(
+        self,
+        test_data,
+        test_target,
+        display = True
+    ):
+        """
+        Used to estimate the gradient numerically. Used to check our gradient computation
+
+        :param test_data: An array of examples+labels we want to verify our back propagation algorithm with
+        """
+        x = test_data
+        y = test_target
+        output, loss = self.fprop_mat(x, y)
+
+        nabla_L = -1/output
+        approx_L = gradient_approx(output, log_loss)
+
+        #nabla_s = output * (1 - output)
+        #approx_s = gradient_approx(relu(self.zs[-1]), softmax)
+    
+        nabla_a = relu_prime(self.zs[-1])
+        approx_a = gradient_approx(self.zs[-1], relu)
+
+        for i in range(len(output)):
+            for j in range(len(output[0])):
+                print("i %s"%i)
+                print("j %s"%j)
+                print(nabla_L[i][j])
+                print(approx_L[i][j])
+                assert about_equal(nabla_L[i][j], approx_L[i][j])
+                assert about_equal(nabla_a[i][j], approx_a[i][j])
         
         if display:
             print('gradient: ')
@@ -182,11 +227,25 @@ class Network(object):
         self.w = [w - (step_size / len(mini_batch)) * nw for w, nw in zip(self.weights, nabla_w)]
         self.b = [b - (step_size / len(mini_batch)) * nb for b, nb in zip(self.biases, nabla_b)]
 
+
     def fprop(self, x, y):
+        x = vectorof(x)
+        y = vectorof(y)
         self.zs = [x]
         z = x
         for w, b in zip(self.w, self.b):
             z = relu(w.T @ z + b)
+            self.zs.append(z)
+       
+        o = softmax(z)
+        L = log_loss(o[y])
+        return o, L
+
+    def fprop_mat(self, x, y):
+        self.zs = [x]
+        z = x.T
+        for w, b in zip(self.w, self.b):
+            z = relu(w.T@z + b)
             self.zs.append(z)
        
         o = softmax(z)
@@ -210,7 +269,7 @@ class Network(object):
             nabla_b[k] = e_now
             e_prev = e_now
 
-        return nabla_b, nabla_w
+        return nabla_b, 
 
     def onehot(self, y):
         oh = np.zeros((self.layer_sizes[-1],1)).astype(int)
